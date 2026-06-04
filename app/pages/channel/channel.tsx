@@ -51,6 +51,7 @@ function RecordModeRadio({ record }: { record: ChannelItem }) {
         { label: t("record_short_always"), value: "always" },
         { label: t("record_short_ai"), value: "ai" },
         { label: t("record_short_none"), value: "none" },
+        { label: t("record_short_watchRecord"), value: "watchRecord" },
       ]}
     />
   );

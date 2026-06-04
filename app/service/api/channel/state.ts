@@ -92,8 +92,8 @@ export type Ext = {
   gb_version: string;
   /** 是否启用 AI 检测 */
   enabled_ai?: boolean;
-  /** 录像模式：always-一直录制，ai-按AI触发录制，none-不录制 */
-  record_mode?: "always" | "ai" | "none";
+  /** 录像模式：always-一直录制，ai-按AI触发录制，none-不录制,watchRecord-播放即录制 */
+  record_mode?: "always"| "watchRecord" | "ai" | "none";
 };
 
 export type RefreshSnapshotResponse = {

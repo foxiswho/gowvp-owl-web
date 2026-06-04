@@ -212,6 +212,12 @@ export default function DeviceDetailView({
                   {t("common:record_mode_always")}
                 </DropdownMenuItem>
                 <DropdownMenuItem
+                    onClick={() => setRecordModeMutate("watchRecord")}
+                    className={recordMode === "watchRecord" ? "bg-accent" : ""}
+                >
+                  {t("common:record_mode_watchRecord")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
                   onClick={() => setRecordModeMutate("ai")}
                   className={recordMode === "ai" ? "bg-accent" : ""}
                 >

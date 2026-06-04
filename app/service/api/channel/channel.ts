@@ -80,7 +80,7 @@ export async function DisableAI(channelId: string) {
 }
 
 // 录像模式管理 API
-export type RecordMode = "always" | "ai" | "none";
+export type RecordMode = "always"| "watchRecord" | "ai" | "none";
 
 export type SetRecordModeResponse = {
   id: string;

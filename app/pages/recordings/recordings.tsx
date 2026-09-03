@@ -319,7 +319,7 @@ function RecordingDeviceCard({ device }: { device: DeviceWithChannelsItem }) {
                   textOverflow: "ellipsis",
                 }}
               >
-                {device.ext.name || device.name || t("unnamed_device")}
+                  {device.name || device.ext.name || t("unnamed_device")}
               </CardTitle>
               <div className="flex items-center gap-2 mt-1">
                 <span style={{ fontSize: 12, color: "#8e8e93" }}>

@@ -1,12 +1,15 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Radio } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { RefreshCcw, SquarePlay } from "lucide-react";
+import { RefreshCcw, Server, SquarePlay } from "lucide-react";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
+import { GlassButton } from "~/components/ui/glass-button";
+import { GlassSearch } from "~/components/ui/glass-search";
+import { formatDate } from "~/components/util/date";
 import useDebounce from "~/components/util/debounce";
 import { TableQuery, type TableQueryRef } from "~/components/xui/table-query";
 import { toastSuccess } from "~/components/xui/toast";
@@ -19,7 +22,7 @@ import {
   SetRecordMode,
 } from "~/service/api/channel/channel";
 import type { ChannelItem } from "~/service/api/channel/state";
-import { RefreshCatalog } from "~/service/api/device/device";
+import { GetDevice, getDeviceKey, RefreshCatalog } from "~/service/api/device/device";
 import { ErrorHandle } from "~/service/config/error";
 
 /**
@@ -27,13 +30,13 @@ import { ErrorHandle } from "~/service/config/error";
  */
 function RecordModeRadio({ record }: { record: ChannelItem }) {
   const { t } = useTranslation("common");
-  const currentMode = record.ext?.record_mode || "none";
+  const currentMode = record.ext?.record_mode || "always";
   const [mode, setMode] = useState<RecordMode>(currentMode);
 
   const { mutate, isPending } = useMutation({
     mutationFn: (newMode: RecordMode) => SetRecordMode(record.id, newMode),
     onSuccess: (data) => {
-      setMode(data.data.record_mode);
+      setMode(data.data?.record_mode || "always");
       toast.success(t("record_mode_set_success"));
     },
     onError: ErrorHandle,
@@ -68,6 +71,14 @@ export default function ChannelsView() {
 
   const params = new URLSearchParams(window.location.search);
   const did = params.get("did");
+
+  const { data: deviceData } = useQuery({
+    queryKey: [getDeviceKey, did],
+    queryFn: () => GetDevice(did!),
+    enabled: !!did,
+  });
+  const device = deviceData?.data;
+  const isGB28181 = device?.type === "GB28181" || device?.type === "" || !device?.type;
 
   // =============== 表格列定义 ===============
   const columns: ColumnsType<ChannelItem> = [
@@ -154,7 +165,7 @@ export default function ChannelsView() {
     {
       title: t("record_mode"),
       key: "record_mode",
-      width: 140,
+      width: 180,
       render: (_, record) => <RecordModeRadio record={record} />,
     },
     {
@@ -190,7 +201,8 @@ export default function ChannelsView() {
     },
   ];
 
-  // 搜索防抖
+  const [searchKey, setSearchKey] = useState("");
+
   const debouncedFilters = useDebounce((key: string) => {
     tableRef.current?.setFilters((prev: any) => ({ ...prev, page: 1, key }));
   }, 500);
@@ -206,15 +218,10 @@ export default function ChannelsView() {
     });
 
   return (
-    <>
-      {/* <XHeader
-        items={[{ title: "国标设备", url: "devices" }, { title: "通道列表" }]}
-      /> */}
-      <div className="w-full bg-white p-4 rounded-lg">
-        <div className="flex justify-between items-center">
-          <Button
-            // variant="ghost"
-            size="sm"
+    <div className="bg-transparent p-4 sm:p-6">
+      <div className="mb-6 flex items-center gap-2">
+        {isGB28181 && (
+          <GlassButton
             onClick={() => {
               if (did) refreshCatalogMutate(did);
             }}
@@ -222,30 +229,132 @@ export default function ChannelsView() {
           >
             <RefreshCcw
               className={cn(
-                "h-4 w-4 mr-1",
+                "w-3.5 h-3.5",
                 refreshCatalogIsPending && "animate-spin",
               )}
             />
-            向设备同步通道
-          </Button>
+            同步通道信息
+          </GlassButton>
+        )}
 
-          {/* 搜索和添加区域 */}
-          <div className="flex justify-end items-center py-4">
-            <span className="mr-3">搜索</span>
-            <Input
-              placeholder="可输入名称/国标ID/ID 模糊搜索"
-              onChange={(event) => debouncedFilters(event.target.value)}
-              className="w-56"
-            />
+        <GlassSearch
+          className="ml-auto"
+          value={searchKey}
+          onChange={(v) => {
+            setSearchKey(v);
+            debouncedFilters(v);
+          }}
+          onSearch={(v) => debouncedFilters(v)}
+          onClear={() => debouncedFilters("")}
+          placeholder="名称/国标ID/ID"
+          width={220}
+        />
+      </div>
 
-            {/* <EditForm
-            ref={editFromRef}
-            onAddSuccess={() => tableRef.current?.handleAddSuccess()}
-            onEditSuccess={(data) => tableRef.current?.handleEditSuccess(data)}
-          /> */}
+      {/* 设备详细信息卡片 — Liquid Glass 风格 */}
+      {device && (
+        <div
+          className="mb-6 rounded-[20px] p-5"
+          style={{
+            background: "rgba(255, 255, 255, 0.65)",
+            backdropFilter: "blur(40px) saturate(180%)",
+            WebkitBackdropFilter: "blur(40px) saturate(180%)",
+            border: "1px solid rgba(255, 255, 255, 0.6)",
+            boxShadow: "0 4px 20px rgba(0,0,0,0.04), inset 0 0.5px 0 rgba(255,255,255,0.8)",
+          }}
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-3 mb-2">
+                <h2
+                  className="text-lg font-semibold truncate"
+                  style={{
+                    color: "#1d1d1f",
+                    letterSpacing: "-0.01em",
+                    fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif",
+                  }}
+                >
+                  {device.ext?.name || device.name || device.device_id}
+                </h2>
+                <span
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+                  style={{
+                    background: device.is_online ? "rgba(52, 199, 89, 0.12)" : "rgba(255, 59, 48, 0.12)",
+                    color: device.is_online ? "#248a3d" : "#d70015",
+                  }}
+                >
+                  <span
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{ background: device.is_online ? "#34c759" : "#ff3b30" }}
+                  />
+                  {device.is_online ? t("online") : t("offline")}
+                </span>
+              </div>
+
+              <p className="text-xs font-mono mb-3" style={{ color: "#8e8e93" }}>
+                {device.device_id}
+              </p>
+
+              <div className="flex flex-wrap gap-1.5">
+                {device.ext?.manufacturer && (
+                  <Badge variant="secondary" className="text-[11px] rounded-full h-[22px] px-2.5 py-0 font-medium bg-black/[0.04] text-[#424245] border-0">
+                    {t("vendor")}: {device.ext.manufacturer}
+                  </Badge>
+                )}
+                {device.ext?.model && (
+                  <Badge variant="secondary" className="text-[11px] rounded-full h-[22px] px-2.5 py-0 font-medium bg-black/[0.04] text-[#424245] border-0">
+                    {t("model")}: {device.ext.model}
+                  </Badge>
+                )}
+                {device.ext?.firmware && (
+                  <Badge variant="secondary" className="text-[11px] rounded-full h-[22px] px-2.5 py-0 font-medium bg-black/[0.04] text-[#424245] border-0">
+                    {t("firmware")}: {device.ext.firmware}
+                  </Badge>
+                )}
+                {device.ext?.gb_version && (
+                  <Badge variant="secondary" className="text-[11px] rounded-full h-[22px] px-2.5 py-0 font-medium bg-blue-100 text-blue-800 border-0">
+                    GB28181-{device.ext.gb_version}
+                  </Badge>
+                )}
+                {(device.address || device.ip) && (
+                  <Badge variant="secondary" className="text-[11px] rounded-full h-[22px] px-2.5 py-0 font-medium font-mono bg-black/[0.04] text-[#8e8e93] border-0">
+                    <Server className="w-3 h-3 mr-1 opacity-60" />
+                    {device.transport ? `${device.transport}://` : ""}{device.address || device.ip}
+                  </Badge>
+                )}
+                {device.registered_at && (
+                  <Badge variant="secondary" className="text-[11px] rounded-full h-[22px] px-2.5 py-0 font-medium bg-black/[0.04] text-[#8e8e93] border-0">
+                    {t("recent_register")}: {formatDate(device.registered_at)}
+                  </Badge>
+                )}
+                {device.keepalive_at && (
+                  <Badge variant="secondary" className="text-[11px] rounded-full h-[22px] px-2.5 py-0 font-medium bg-black/[0.04] text-[#8e8e93] border-0">
+                    {t("recent_heartbeat")}: {formatDate(device.keepalive_at)}
+                  </Badge>
+                )}
+              </div>
+            </div>
+
+            <div className="text-right shrink-0">
+              <div style={{ fontSize: 28, fontWeight: 700, color: "#1d1d1f", letterSpacing: "-0.02em", lineHeight: 1 }}>
+                {device.channels ?? 0}
+              </div>
+              <div style={{ fontSize: 11, color: "#aeaeb2", marginTop: 4 }}>{t("channel")}</div>
+            </div>
           </div>
         </div>
+      )}
 
+      <div
+        className="w-full rounded-[20px] overflow-hidden"
+        style={{
+          background: "rgba(255,255,255,0.70)",
+          backdropFilter: "blur(40px)",
+          WebkitBackdropFilter: "blur(40px)",
+          border: "1px solid rgba(255,255,255,0.6)",
+          boxShadow: "0 4px 16px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,0.9)",
+        }}
+      >
         <TableQuery
           ref={tableRef}
           queryKey={findChannelsKey}
@@ -253,11 +362,10 @@ export default function ChannelsView() {
           columns={columns}
           defaultFilters={{ page: 1, size: 10, did: did ?? "" }}
         />
-
-        {/* 播放器 */}
-        <ChannelDetailView ref={detailRef} />
       </div>
-    </>
+
+      <ChannelDetailView ref={detailRef} />
+    </div>
   );
 }
 

@@ -1,10 +1,13 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router";
-import { Button, Popconfirm, Tooltip } from "antd";
-import { Cctv, Loader2, Monitor, Server, Wifi } from "lucide-react";
-import React, { useRef, useState } from "react";
+import { Popconfirm, Tooltip } from "antd";
+import { Cctv, Loader2, Monitor, Search, Server, Wifi } from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
+import { GlassButton } from "~/components/ui/glass-button";
+import { GlassSearch } from "~/components/ui/glass-search";
+import { GlassSegment } from "~/components/ui/glass-segment";
 import { cn } from "~/lib/utils";
 import { COVER_BLUR_STORAGE_KEY } from "~/components/settings/general_settings";
 import { RefreshSnapshot, StopPlay } from "~/service/api/channel/channel";
@@ -22,10 +25,18 @@ import DeviceDiscover from "./device_discover";
 export default function ChannelsView() {
   const { t } = useTranslation("common");
 
-  // 查询通道树数据
+  const [searchKey, setSearchKey] = useState("");
+  const [debouncedKey, setDebouncedKey] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedKey(searchKey), 500);
+    return () => clearTimeout(timer);
+  }, [searchKey]);
+
   const { data, isLoading } = useQuery({
-    queryKey: [findDevicesChannelsKey],
-    queryFn: () => FindDevicesChannels({ page: 1, size: 100 }),
+    queryKey: [findDevicesChannelsKey, debouncedKey],
+    queryFn: () =>
+      FindDevicesChannels({ page: 1, size: 100, key: debouncedKey || undefined }),
     refetchInterval: 10000,
   });
 
@@ -42,90 +53,34 @@ export default function ChannelsView() {
   ];
 
   return (
-    <div className="min-h-screen bg-transparent p-4 sm:p-6">
+    <div className="bg-transparent p-4 sm:p-6">
       <div className="mx-auto ">
-        {/* 导航按钮 */}
+        {/* 导航工具栏 — macOS 26 Liquid Glass 组件 */}
         <div className="mb-6 flex flex-row gap-2 items-center">
-          {/* Apple Segment Control */}
-          <div
-            style={{
-              display: "inline-flex",
-              background: "rgba(0,0,0,0.06)",
-              borderRadius: 9,
-              padding: 2,
-              gap: 0,
-            }}
-          >
-            {options.map((opt) => {
-              const active = opt.value === "/nchannels";
-              return (
-                <button
-                  key={opt.value as string}
-                  type="button"
-                  onClick={() => navigate(opt.value as string)}
-                  style={{
-                    height: 28,
-                    padding: "0 14px",
-                    borderRadius: 7,
-                    fontSize: 13,
-                    fontWeight: 500,
-                    color: active ? "#1d1d1f" : "#6e6e73",
-                    background: active ? "#fff" : "transparent",
-                    boxShadow: active ? "0 1px 3px rgba(0,0,0,0.12), 0 0.5px 0 rgba(0,0,0,0.06)" : "none",
-                    border: "none",
-                    cursor: "pointer",
-                    transition: "all 0.25s cubic-bezier(0.4,0,0.2,1)",
-                    whiteSpace: "nowrap",
-                    fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif",
-                  }}
-                >
-                  {opt.label as string}
-                </button>
-              );
-            })}
-          </div>
+          <GlassSegment
+            options={options}
+            value="/nchannels"
+            onChange={(v) => navigate(v)}
+          />
 
           <Link to="/gb/sip">
-            <Button
-              style={{
-                padding: "0 16px",
-                height: 32,
-                borderRadius: 9999,
-                fontSize: 13,
-                fontWeight: 500,
-                color: "#6e6e73",
-                background: "transparent",
-                border: "1px solid rgba(0,0,0,0.08)",
-                boxShadow: "none",
-                display: "flex",
-                alignItems: "center",
-              }}
-            >
-              {t("access_info")}
-            </Button>
+            <GlassButton>{t("access_info")}</GlassButton>
           </Link>
 
-          {/* 设备发现按钮 */}
-          <Button
-            icon={<Wifi style={{ width: 14, height: 14 }} />}
-            onClick={() => discoverRef.current?.open()}
-            style={{
-              padding: "0 16px",
-              height: 32,
-              borderRadius: 9999,
-              fontSize: 13,
-              fontWeight: 500,
-              color: "#6e6e73",
-              background: "transparent",
-              border: "1px solid rgba(0,0,0,0.08)",
-              boxShadow: "none",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
+          <GlassButton onClick={() => discoverRef.current?.open()}>
+            <Wifi className="w-3.5 h-3.5" />
             {t("device_discover")}
-          </Button>
+          </GlassButton>
+
+          <GlassSearch
+            className="ml-auto"
+            value={searchKey}
+            onChange={setSearchKey}
+            onSearch={setDebouncedKey}
+            onClear={() => setDebouncedKey("")}
+            placeholder={t("search_channel")}
+            width={220}
+          />
         </div>
 
         {/* Device Cards */}
@@ -137,9 +92,25 @@ export default function ChannelsView() {
                 <DeviceCardSkeleton key={index} />
               ))}
           </div>
+        ) : !data?.data.items?.length ? (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "60px 20px",
+              color: "#9ca3af",
+            }}
+          >
+            <Search style={{ width: 32, height: 32, marginBottom: 12, opacity: 0.4 }} />
+            <span style={{ fontSize: 14 }}>
+              {debouncedKey ? t("no_search_results") : t("no_devices_found")}
+            </span>
+          </div>
         ) : (
           <div className="space-y-3">
-            {data?.data.items?.map((device) => (
+            {data.data.items.map((device) => (
               <DeviceCard
                 key={device.id}
                 device={device}
@@ -204,17 +175,15 @@ function ChannelCard({
   return (
     <div
       className={cn(
-        "group w-[280px] rounded-[20px] overflow-hidden",
+        "group w-full max-w-[280px] rounded-[20px] overflow-hidden",
         "shadow-[0_4px_16px_rgba(0,0,0,0.05),inset_0_1px_0_rgba(255,255,255,0.9)]",
         "hover:-translate-y-[3px] hover:scale-[1.01]",
         "hover:shadow-[0_8px_30px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.9)]",
         isActive && "ring-2 ring-blue-500",
       )}
       style={{
-        background: "rgba(255, 255, 255, 0.70)",
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        border: "1px solid rgba(255, 255, 255, 0.8)",
+        background: "rgba(255, 255, 255, 0.88)",
+        border: "1px solid rgba(255, 255, 255, 0.9)",
         transition: "all 0.3s cubic-bezier(0.4,0,0.2,1)",
       }}
     >
@@ -226,7 +195,7 @@ function ChannelCard({
         <img
           src={snapshotUrl || "./assets/imgs/bg.avif"}
           alt="通道预览"
-          className="aspect-[4/3] object-cover"
+          className="w-full h-full object-cover"
           style={coverBlur ? { filter: "blur(6px)" } : undefined}
           onError={(e) => {
             const target = e.target as HTMLImageElement;
@@ -387,11 +356,9 @@ function DeviceCard({
     <Card
       className="w-full rounded-[24px]"
       style={{
-        background: "rgba(255, 255, 255, 0.65)",
-        backdropFilter: "blur(40px)",
-        WebkitBackdropFilter: "blur(40px)",
-        border: "1px solid rgba(255, 255, 255, 0.6)",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.8)",
+        background: "rgba(255, 255, 255, 0.82)",
+        border: "1px solid rgba(255, 255, 255, 0.7)",
+        boxShadow: "0 4px 20px rgba(0,0,0,0.04), 0 1px 4px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.7)",
       }}
     >
       <CardHeader className="p-2 px-4">

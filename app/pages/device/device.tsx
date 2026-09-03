@@ -1,12 +1,13 @@
 import { Link, useNavigate } from "react-router";
-import { Button as AntButton } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { Edit, Folder, Wifi } from "lucide-react";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
+import { GlassButton } from "~/components/ui/glass-button";
+import { GlassSearch } from "~/components/ui/glass-search";
+import { GlassSegment } from "~/components/ui/glass-segment";
 import { formatDate } from "~/components/util/date";
 import useDebounce from "~/components/util/debounce";
 import { XButtonDelete } from "~/components/xui/button";
@@ -24,6 +25,7 @@ import { EditForm } from "./edit";
 export default function DeviceView() {
   const { t } = useTranslation(["device", "common"]);
   const navigate = useNavigate();
+  const [searchKey, setSearchKey] = useState("");
   // refs
   const editFromRef = useRef<EditSheetImpl>(null);
   const tableRef = useRef<TableQueryRef<DeviceItem>>(null);
@@ -213,104 +215,30 @@ export default function DeviceView() {
     <div className="min-h-screen bg-transparent p-6">
       <div className="mb-6 flex flex-row gap-2 items-center justify-between w-full">
           <div className="flex flex-row gap-2 items-center">
-            {/* Apple Segment Control */}
-            <div
-              style={{
-                display: "inline-flex",
-                background: "rgba(0,0,0,0.06)",
-                borderRadius: 9,
-                padding: 2,
-                gap: 0,
-              }}
-            >
-              {options.map((opt) => {
-                const active = opt.value === "/devices";
-                return (
-                  <button
-                    key={opt.value as string}
-                    type="button"
-                    onClick={() => navigate(opt.value as string)}
-                    style={{
-                      height: 28,
-                      padding: "0 14px",
-                      borderRadius: 7,
-                      fontSize: 13,
-                      fontWeight: 500,
-                      color: active ? "#1d1d1f" : "#6e6e73",
-                      background: active ? "#fff" : "transparent",
-                      boxShadow: active ? "0 1px 3px rgba(0,0,0,0.12), 0 0.5px 0 rgba(0,0,0,0.06)" : "none",
-                      border: "none",
-                      cursor: "pointer",
-                      transition: "all 0.25s cubic-bezier(0.4,0,0.2,1)",
-                      whiteSpace: "nowrap",
-                      fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif",
-                    }}
-                  >
-                    {opt.label as string}
-                  </button>
-                );
-              })}
-            </div>
+            <GlassSegment
+              options={options}
+              value="/devices"
+              onChange={(v) => navigate(v)}
+            />
 
             <Link to="/gb/sip">
-              <AntButton
-                style={{
-                  padding: "0 16px",
-                  height: 32,
-                  borderRadius: 9999,
-                  fontSize: 13,
-                  fontWeight: 500,
-                  color: "#6e6e73",
-                  background: "transparent",
-                  border: "1px solid rgba(0,0,0,0.08)",
-                  boxShadow: "none",
-                  display: "flex",
-                  alignItems: "center",
-                }}
-              >
-                {t("common:access_info")}
-              </AntButton>
+              <GlassButton>{t("common:access_info")}</GlassButton>
             </Link>
 
-            <AntButton
-              icon={<Wifi style={{ width: 14, height: 14 }} />}
-              onClick={() => discoverRef.current?.open()}
-              style={{
-                padding: "0 16px",
-                height: 32,
-                borderRadius: 9999,
-                fontSize: 13,
-                fontWeight: 500,
-                color: "#6e6e73",
-                background: "transparent",
-                border: "1px solid rgba(0,0,0,0.08)",
-                boxShadow: "none",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
+            <GlassButton onClick={() => discoverRef.current?.open()}>
+              <Wifi className="w-3.5 h-3.5" />
               {t("common:device_discover")}
-            </AntButton>
+            </GlassButton>
           </div>
 
           {/* 搜索和添加区域 */}
           <div className="flex items-center gap-2">
-            <Input
+            <GlassSearch
+              value={searchKey}
+              onChange={(v) => { setSearchKey(v); debouncedFilters(v); }}
+              onClear={() => debouncedFilters("")}
               placeholder={t("common:search_device_placeholder")}
-              onChange={(event) => debouncedFilters(event.target.value)}
-              className="w-56"
-              style={{
-                height: 32,
-                borderRadius: 9999,
-                background: "rgba(255,255,255,0.65)",
-                backdropFilter: "blur(20px)",
-                WebkitBackdropFilter: "blur(20px)",
-                border: "1px solid rgba(0,0,0,0.08)",
-                fontSize: 13,
-                color: "#1d1d1f",
-                boxShadow: "none",
-              }}
+              width={220}
             />
 
             <EditForm

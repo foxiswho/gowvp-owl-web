@@ -7,6 +7,11 @@ import { defineConfig } from "vite";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   return {
+    experimental: {
+      // bundledDev 有 tree-shaking 半残留 bug（#22749），8.1.5 未修复
+      // 等 changelog 明确列出 #22749 fix 后再启用
+      // bundledDev: true,
+    },
     plugins: [
       react(),
       tailwindcss(),
@@ -27,6 +32,9 @@ export default defineConfig(({ mode }) => {
       },
     },
     build: {
+      // chunk import map：防止哈希级联，改一个 chunk 不会导致引用它的 chunk 哈希全变
+      // 好处：浏览器缓存命中率大幅提升，用户更新后只需下载变更的 chunk
+      chunkImportMap: true,
       rolldownOptions: {
         output: {
           // Vite 8 使用 Rolldown 的 codeSplitting 替代 manualChunks
@@ -81,6 +89,7 @@ export default defineConfig(({ mode }) => {
         "/api": {
           target: "http://127.0.0.1:15123",
           changeOrigin: true,
+          ws: true,
           rewrite: (path) => path.replace(/^\/api/, ""),
         },
         "/local": {

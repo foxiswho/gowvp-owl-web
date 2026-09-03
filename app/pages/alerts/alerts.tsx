@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { DatePicker, Modal, Select, Spin } from "antd";
+import { DatePicker, Modal, Spin } from "antd";
 import { Masonry } from "antd";
 import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
@@ -7,6 +7,15 @@ import { ChevronLeft, ChevronRight, RefreshCw, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
+import { GlassButton } from "~/components/ui/glass-button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
+import { cn } from "~/lib/utils";
 import { FindChannels, findChannelsKey } from "~/service/api/channel/channel";
 import {
   FindEvents,
@@ -263,48 +272,43 @@ export default function AlertsView() {
   };
 
   return (
-    <div className="h-[calc(100vh-80px)] flex flex-col">
+    <div className="h-[calc(100vh-80px)] flex flex-col p-4 sm:p-6">
       {/* 筛选栏 */}
-      <div className="flex flex-wrap items-center gap-3 p-4 bg-transparent">
-        {/* 通道筛选 - 使用 id 作为 cid 进行筛选 */}
+      <div className="mb-6 flex flex-wrap items-center gap-3 bg-transparent">
+        {/* 通道筛选 */}
         <Select
-          placeholder={t("alert_filter_channel")}
-          allowClear
-          style={{
-            minWidth: 180,
-            background: "rgba(255, 255, 255, 0.65)",
-            backdropFilter: "blur(40px)",
-            WebkitBackdropFilter: "blur(40px)",
-            borderRadius: 9999,
-          }}
-          variant="borderless"
-          value={selectedChannel || undefined}
-          onChange={(value) => setSelectedChannel(value || "")}
-          options={[
-            { label: t("all_channels"), value: "" },
-            ...channels.map((ch) => ({
-              label: ch.name || ch.channel_id,
-              value: ch.id,
-            })),
-          ]}
-        />
+          value={selectedChannel || "__all__"}
+          onValueChange={(v) => setSelectedChannel(v === "__all__" ? "" : v)}
+        >
+          <SelectTrigger className="h-8 min-w-[180px] w-auto rounded-full text-[13px] bg-white/55 backdrop-blur-[20px] backdrop-saturate-150 border-white/60 shadow-[0_1px_4px_rgba(0,0,0,0.08),inset_0_0.5px_0_rgba(255,255,255,0.7)] hover:bg-white/75">
+            <SelectValue placeholder={t("alert_filter_channel")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">{t("all_channels")}</SelectItem>
+            {channels.map((ch) => (
+              <SelectItem key={ch.id} value={ch.id}>
+                {ch.name || ch.channel_id}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         {/* 类型筛选 */}
         <Select
-          placeholder={t("alert_filter_label")}
-          allowClear
-          style={{
-            minWidth: 120,
-            background: "rgba(255, 255, 255, 0.65)",
-            backdropFilter: "blur(40px)",
-            WebkitBackdropFilter: "blur(40px)",
-            borderRadius: 9999,
-          }}
-          variant="borderless"
-          value={selectedLabel || undefined}
-          onChange={(value) => setSelectedLabel(value || "")}
-          options={labelOptions}
-        />
+          value={selectedLabel || "__all__"}
+          onValueChange={(v) => setSelectedLabel(v === "__all__" ? "" : v)}
+        >
+          <SelectTrigger className="h-8 min-w-[120px] w-auto rounded-full text-[13px] bg-white/55 backdrop-blur-[20px] backdrop-saturate-150 border-white/60 shadow-[0_1px_4px_rgba(0,0,0,0.08),inset_0_0.5px_0_rgba(255,255,255,0.7)] hover:bg-white/75">
+            <SelectValue placeholder={t("alert_filter_label")} />
+          </SelectTrigger>
+          <SelectContent>
+            {labelOptions.map((opt) => (
+              <SelectItem key={opt.value || "__all__"} value={opt.value || "__all__"}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         {/* 时间范围 */}
         <RangePicker
@@ -314,12 +318,7 @@ export default function AlertsView() {
             setTimeRange(dates ? [dates[0], dates[1]] : [null, null])
           }
           variant="borderless"
-          style={{
-            background: "rgba(255, 255, 255, 0.65)",
-            backdropFilter: "blur(40px)",
-            WebkitBackdropFilter: "blur(40px)",
-            borderRadius: 9999,
-          }}
+          className="glass-select"
           presets={[
             {
               label: t("today"),
@@ -344,32 +343,15 @@ export default function AlertsView() {
         />
 
         {/* 刷新按钮 */}
-        <button
-          type="button"
+        <GlassButton
           onClick={() => refetch()}
           title={t("refresh")}
-          style={{
-            height: 32,
-            width: 32,
-            borderRadius: 9999,
-            fontSize: 13,
-            color: "#6e6e73",
-            background: "transparent",
-            border: "1px solid rgba(0,0,0,0.08)",
-            boxShadow: "none",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            transition: "background 0.2s",
-            flexShrink: 0,
-          }}
+          className="w-8 h-8 !px-0 shrink-0"
         >
           <RefreshCw
-            style={{ width: 14, height: 14, color: "#6e6e73" }}
-            className={isLoading ? "animate-spin" : ""}
+            className={cn("w-3.5 h-3.5", isLoading && "animate-spin")}
           />
-        </button>
+        </GlassButton>
       </div>
 
       {/* 瀑布流内容区 */}
@@ -382,8 +364,18 @@ export default function AlertsView() {
             <Spin size="large" />
           </div>
         ) : allEvents.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-gray-400">
-            <div className="text-lg">{t("alert_no_events")}</div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "60px 20px",
+              color: "#9ca3af",
+            }}
+          >
+            <RefreshCw style={{ width: 32, height: 32, marginBottom: 12, opacity: 0.4 }} />
+            <span style={{ fontSize: 14 }}>{t("alert_no_events")}</span>
           </div>
         ) : (
           <>

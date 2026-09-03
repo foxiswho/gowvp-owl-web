@@ -8,3 +8,5 @@ dist/
 .cursor/
 .remember/
 stats.html
+.idea
+.yarn
